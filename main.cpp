@@ -3,6 +3,8 @@
 #include <string>
 #include <fstream>
 #include <cmath>
+#include <cstring>
+
 #define CONST_E 2.7182818284590452353602874713527
 
 //network with nodes 784-32-16-10
@@ -16,6 +18,8 @@ struct images{
     float pixels[784];
     unsigned char label;
 };
+
+
 
 void initialize_array(std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights){
     neurons[0].resize(784);
@@ -42,7 +46,7 @@ void loadImages(const std::string& image_path, const std::string& label_path, st
     images_file.open(image_path, std::ios::in);
     label_file.open(label_path, std::ios::in);
     if(!images_file.is_open() || !label_file.is_open())
-        throw;
+        throw;//don't have time to throw a meaningful exception so i just throw lol
 
     images_file.seekg(0, std::ios::end);
     long size = (int)images_file.tellg();
@@ -69,6 +73,8 @@ void loadImages(const std::string& image_path, const std::string& label_path, st
             all_images[i].pixels[j] = (float)images_data[i * 784 + j + 16] / 255;
         }
     }
+    delete []images_data;
+    delete []label_data;
 }
 
 float sigmoid_func(float input){
@@ -92,16 +98,82 @@ void guess_image(images& image, std::vector<std::vector<node>>& neurons, std::ve
 
 }
 
+void loadWeights_biases(std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights, const std::string& path){
+    char* data = new char[106408];
 
-int main() {
+    std::ifstream wbfile;
+    wbfile.open(path, std::ios::in);
+    wbfile.read(data, 106408);
+    wbfile.close();
+
+
+    int index = 0;
+    for(auto & neuron_layer : neurons){
+        for(auto & neuron : neuron_layer){
+            neuron.bias = *(float*)&data[index];
+            index += 4;
+        }
+    }
+    for(auto & weight_layer : weights){
+        for(auto & weight : weight_layer){
+            weight = *(float*)&data[index];
+            index += 4;
+        }
+    }
+
+    delete[] data;
+}
+
+void saveWeights_biases(std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights, const std::string& path){
+
+    char* data = new char[106408];
+    int index = 0;
+    for(auto & neuron_layer : neurons){
+        for(auto & neuron : neuron_layer){
+            *(float*)&data[index] = neuron.bias;
+            index += 4;
+        }
+    }
+    for(auto & weight_layer : weights){
+        for(auto & weight : weight_layer){
+            *(float*)&data[index] = weight;
+            index += 4;
+        }
+    }
+
+    std::ofstream wbfile;
+    wbfile.open(path, std::ios::out | std::ios::trunc);
+    wbfile.write(data, 106408);
+    wbfile.close();
+
+    delete[] data;
+}
+
+
+int main(int argc, char *argv[]) {
+    srand(time(0));
     int image_to_guess = 13;
     std::vector<std::vector<node>> neurons(4);
     std::vector<std::vector<float>> weights(3);
     std::vector<images> all_images;
+    std::string training_path = "/home/nejc/CLionProjects/Neural_network/AI_images_set";
+
     initialize_array(neurons, weights);
-    std::string training_path = "/home/nejc/CLionProjects/Neural_network/AI_images_set/training";
-    loadImages(training_path + "/train-images.data", training_path + "/train-labels.data", all_images);
+    loadImages(training_path + "/training/train-images.data", training_path + "/training/train-labels.data", all_images);
+    if(argc != 3)
+        throw;//don't have time to throw a meaningful exception so i just throw lol
+    else{
+        if(strcmp(argv[1], "true") == 0){
+            loadWeights_biases(neurons, weights, training_path + "/neural_data.wbdata");
+        }
+        if(strcmp(argv[2], "true") == 0){
+            saveWeights_biases(neurons, weights, training_path + "/neural_data.wbdata");
+        }
+    }
+
+
     guess_image(all_images[image_to_guess], neurons, weights);
+
     for(int i = 0; i < 10; i++){
         std::cout << neurons[3][i].value << " ";
     }
