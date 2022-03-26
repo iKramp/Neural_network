@@ -2,12 +2,14 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <cmath>
+#define CONST_E 2.7182818284590452353602874713527
 
 //network with nodes 784-32-16-10
 //  and with weights 25088-512-160
 struct node{
-    float value;
-    float bias;
+    float value = 0;
+    float bias = 0;
 };
 
 struct images{
@@ -17,37 +19,22 @@ struct images{
 
 void initialize_array(std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights){
     neurons[0].resize(784);
-    for(int i = 0; i < 784; i++){
-        neurons[0][i].bias = 0;
-    }
     neurons[1].resize(32);
-    for(int i = 0; i < 32; i++){
-        neurons[1][i].bias = 0;
-    }
     neurons[2].resize(16);
-    for(int i = 0; i < 16; i++){
-        neurons[2][i].bias = 0;
-    }
     neurons[3].resize(10);
-    for(int i = 0; i < 10; i++){
-        neurons[3][i].bias = 0;
-    }
+    for(int j = 0; j < 4; j++)
+        for(auto & i : neurons[j])
+            i.bias = rand() % 10 - 5;
 
     weights[0].resize(25088);
-    for(int i = 0; i < 25088; i++){
-        weights[0][i] = 0;
-    }
     weights[1].resize(512);
-    for(int i = 0; i < 512; i++){
-        weights[1][i] = 0;
-    }
     weights[2].resize(160);
-    for(int i = 0; i < 160; i++){
-        weights[2][i] = 0;
-    }
+    for(int j = 0; j < 3; j++)
+        for(float & i : weights[j])
+            i = rand() % 10 - 5;
 }
 
-void loadImages(std::string image_path, std::string label_path, std::vector<images> all_images){
+void loadImages(const std::string& image_path, const std::string& label_path, std::vector<images>& all_images){
     std::ifstream images_file, label_file;
     char* images_data;
     char* label_data;
@@ -72,33 +59,62 @@ void loadImages(std::string image_path, std::string label_path, std::vector<imag
     images_file.close();
     label_file.close();
 
-    //size = (images_data[4] << 24) + (images_data[5] << 16) + (images_data[6] << 8) + (images_data[7]);
-    size = 0;
-    size += (unsigned char)images_data[6] << 8;
-    size += (unsigned char)images_data[7];
+    size = ((unsigned char)images_data[6] << 8) + (unsigned char)images_data[7];
 
 
     for(int i = 0; i < size; i++){
         all_images.resize(size);
         all_images[i].label = label_data[i + 8];
-        unsigned char test = label_data[i + 8];
         for(int j = 0; j < 784; j++){
-            int offset = i * 784 + j + 16;//168
-            float pixel = (float)images_data[i * 784 + j + 16] / 255;
             all_images[i].pixels[j] = (float)images_data[i * 784 + j + 16] / 255;
         }
     }
 }
 
+float sigmoid_func(float input){
+    return 1 / (1 + pow(CONST_E, -input));
+}
+
+
+void guess_image(images& image, std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights){
+    for(int i = 0; i < 784; i++){
+        neurons[0][i].value = image.pixels[i];
+    }
+    for(int i = 0; i < 3; i++){
+        for(int j = 0; j < neurons[i + 0].size() * neurons[i + 1].size(); j++){
+            neurons[i + 1][j / neurons[i].size()].value += neurons[i][j %  neurons[i].size()].value * weights[i][j];
+            if((j + 1) %  neurons[i].size() == 0){
+                neurons[i + 1][j / neurons[i].size()].value += neurons[i + 1][j / neurons[i].size()].bias;
+                neurons[i + 1][j / neurons[i].size()].value = sigmoid_func(neurons[i + 1][j / neurons[i].size()].value);
+            }
+        }
+    }
+
+}
+
 
 int main() {
+    int image_to_guess = 13;
     std::vector<std::vector<node>> neurons(4);
     std::vector<std::vector<float>> weights(3);
     std::vector<images> all_images;
     initialize_array(neurons, weights);
     std::string training_path = "/home/nejc/CLionProjects/Neural_network/AI_images_set/training";
     loadImages(training_path + "/train-images.data", training_path + "/train-labels.data", all_images);
+    guess_image(all_images[image_to_guess], neurons, weights);
+    for(int i = 0; i < 10; i++){
+        std::cout << neurons[3][i].value << " ";
+    }
+    int best_guess_number;
+    float best_guess_value = 0;
 
+    for(int i = 0; i < 10; i++){
+        if(neurons[3][i].value > best_guess_value){
+            best_guess_value = neurons[3][i].value;
+            best_guess_number = i;
+        }
+    }
+    std::cout << "\n" << best_guess_number << "\n" << (int)all_images[image_to_guess].label;
 
 
 
