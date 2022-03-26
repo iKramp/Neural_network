@@ -4,6 +4,8 @@
 #include <fstream>
 #include <cmath>
 #include <cstring>
+#include <algorithm>
+#include <random>
 
 #define CONST_E 2.7182818284590452353602874713527
 
@@ -75,6 +77,9 @@ void loadImages(const std::string& image_path, const std::string& label_path, st
     }
     delete []images_data;
     delete []label_data;
+
+    /*auto rng = std::default_random_engine {};
+    std::shuffle(std::begin(all_images), std::end(all_images), rng);*/
 }
 
 float sigmoid_func(float input){
@@ -149,6 +154,40 @@ void saveWeights_biases(std::vector<std::vector<node>>& neurons, std::vector<std
     delete[] data;
 }
 
+void test_ai(std::vector<images>& all_images, std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights){
+    int image_number = 0;
+    int correct_answers = 0;
+    for(auto& image : all_images){
+        image_number++;
+        guess_image(image, neurons, weights);
+        int best_guess_number;
+        float best_guess_value = 0;
+
+        for(int i = 0; i < 10; i++){
+            if(neurons[3][i].value > best_guess_value){
+                best_guess_value = neurons[3][i].value;
+                best_guess_number = i;
+            }
+        }
+        if(best_guess_number == image.label)
+            correct_answers++;
+        float correct_percentage = 0;
+        if(correct_answers)
+            correct_percentage = (float)correct_answers / (float)image_number;
+
+        if(image_number % 9999 == 0) {
+            std::cout << "\r";
+            /*for (int i = 0; i < image_number / 1000; i++) {
+                std::cout << "-";
+            }
+            for (int i = 0; i < 10 - image_number / 1000; i++) {
+                std::cout << " ";
+            }*///this shit doesn't work...
+            std::cout << std::to_string(correct_percentage).substr(0, 5);
+        }
+    }
+}
+
 
 int main(int argc, char *argv[]) {
     srand(time(0));
@@ -156,39 +195,47 @@ int main(int argc, char *argv[]) {
     std::vector<std::vector<node>> neurons(4);
     std::vector<std::vector<float>> weights(3);
     std::vector<images> all_images;
-    std::string training_path = "/home/nejc/CLionProjects/Neural_network/AI_images_set";
+    std::string images_path = "/home/nejc/CLionProjects/Neural_network/AI_images_set";
 
     initialize_array(neurons, weights);
-    loadImages(training_path + "/training/train-images.data", training_path + "/training/train-labels.data", all_images);
-    if(argc != 3)
+
+    if(argc != 4)
         throw;//don't have time to throw a meaningful exception so i just throw lol
     else{
         if(strcmp(argv[1], "true") == 0){
-            loadWeights_biases(neurons, weights, training_path + "/neural_data.wbdata");
+            loadWeights_biases(neurons, weights, images_path + "/neural_data.wbdata");
         }
+        if(strcmp(argv[3], "test") == 0){
+            loadImages(images_path + "/testing/test_images.data", images_path + "/testing/test_labels.data", all_images);
+            test_ai(all_images, neurons, weights);
+        }else
+            loadImages(images_path + "/training/train_images.data", images_path + "/training/train_labels.data", all_images);
+
+        /*guess_image(all_images[image_to_guess], neurons, weights);
+
+        for(int i = 0; i < 10; i++){
+            std::cout << neurons[3][i].value << " ";
+        }
+        int best_guess_number;
+        float best_guess_value = 0;
+
+        for(int i = 0; i < 10; i++){
+            if(neurons[3][i].value > best_guess_value){
+                best_guess_value = neurons[3][i].value;
+                best_guess_number = i;
+            }
+        }
+        std::cout << "\n" << best_guess_number << "\n" << (int)all_images[image_to_guess].label << std::endl;*/
+
         if(strcmp(argv[2], "true") == 0){
-            saveWeights_biases(neurons, weights, training_path + "/neural_data.wbdata");
+            saveWeights_biases(neurons, weights, images_path + "/neural_data.wbdata");
         }
+
+
     }
 
 
-    guess_image(all_images[image_to_guess], neurons, weights);
-
-    for(int i = 0; i < 10; i++){
-        std::cout << neurons[3][i].value << " ";
-    }
-    int best_guess_number;
-    float best_guess_value = 0;
-
-    for(int i = 0; i < 10; i++){
-        if(neurons[3][i].value > best_guess_value){
-            best_guess_value = neurons[3][i].value;
-            best_guess_number = i;
-        }
-    }
-    std::cout << "\n" << best_guess_number << "\n" << (int)all_images[image_to_guess].label;
-
-
+    //progress bar 200
 
     return 0;
 }
