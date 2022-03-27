@@ -30,14 +30,14 @@ void initialize_array(std::vector<std::vector<node>>& neurons, std::vector<std::
     neurons[3].resize(10);
     for(int j = 0; j < 4; j++)
         for(auto & i : neurons[j])
-            i.bias = rand() % 10 - 5;
+            i.bias = 0;
 
     weights[0].resize(25088);
     weights[1].resize(512);
     weights[2].resize(160);
     for(int j = 0; j < 3; j++)
         for(float & i : weights[j])
-            i = rand() % 10 - 5;
+            i = 0;
 }
 
 void loadImages(const std::string& image_path, const std::string& label_path, std::vector<images>& all_images){
@@ -84,6 +84,10 @@ void loadImages(const std::string& image_path, const std::string& label_path, st
 
 float sigmoid_func(float input){
     return 1 / (1 + pow(CONST_E, -input));
+}
+
+float sigmoid_derivative(float input){
+    return sigmoid_func(input) * (1 - sigmoid_func(input));
 }
 
 
@@ -175,15 +179,80 @@ void test_ai(std::vector<images>& all_images, std::vector<std::vector<node>>& ne
         if(correct_answers)
             correct_percentage = (float)correct_answers / (float)image_number;
 
+
+        if(image_number % 100 == 0) {
+            std::cout << image_number << std::endl;
+        }
         if(image_number % 9999 == 0) {
-            std::cout << "\r";
-            /*for (int i = 0; i < image_number / 1000; i++) {
-                std::cout << "-";
-            }
-            for (int i = 0; i < 10 - image_number / 1000; i++) {
-                std::cout << " ";
-            }*///this shit doesn't work...
             std::cout << std::to_string(correct_percentage).substr(0, 5);
+        }
+    }
+}
+
+void backprop_layer(int layer, float cost, std::vector<std::vector<node>>& neurons, std::vector<float>& weights, std::vector<std::vector<node>>& new_neurons, std::vector<float>& new_weights){
+    for(int i = 0; i < weights.size(); i++){//setting up weights
+        float dc_dw = neurons[layer][i % neurons[layer].size()].value;
+        dc_dw *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
+        dc_dw *= (2 * neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value);
+        float dw = -cost / dc_dw;
+        new_weights[i] += weights[i] + dw;
+    }
+    for(int i = 0; i < weights.size(); i++){//setting up biases
+        float dc_db = 1;
+        dc_db *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
+        dc_db *= (2 * neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value);
+        float db = -cost / dc_db;
+        new_neurons[layer + 1][1 / neurons[layer].size()].bias += neurons[layer + 1][1 / neurons[layer].size()].bias + db;
+    }
+    for(int i = 0; i < weights.size(); i++){//setting up next layer
+        float dc_dv = weights[i];
+        dc_dv *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
+        dc_dv *= (2 * neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value);
+        float dv = -cost / dc_dv;
+        new_neurons[layer][1 % neurons[layer].size()].value += neurons[layer + 1][1 % neurons[layer].size()].bias + dv;
+    }
+}
+
+
+void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights, std::vector<images>& all_images, int start_images){
+    std::vector<std::vector<node>> new_neurons(neurons.size());
+    std::vector<std::vector<float>> new_weights(weights.size());
+    for(int i = 0; i < neurons.size(); i++) {
+        new_neurons[i].resize(neurons[i].size());
+        for(auto & j : new_neurons[i]) {
+            j.value = 0;
+            j.bias = 0;
+        }
+    }
+    for(int i = 0; i < weights.size(); i++) {
+        new_weights[i].resize(weights[i].size());
+        for(auto & j : new_weights[i]) {
+            j = 0;
+        }
+    }
+
+
+    for(int i = 0 + start_images; i < 100 + start_images; i++) {
+        float cost = 0;
+        guess_image(all_images[i], neurons, weights);
+        for (int i = 0; i < 10; i++) {
+            new_neurons[3][i].value = i == all_images[i].label ? 1 : 0;//value is used to store what the values should be
+            cost += pow(new_neurons[3][i].value - neurons[3][i].value, 2);
+        }
+
+        for (int i = 2; i >= 0; i--) {
+            backprop_layer(i, cost, neurons, weights[i], new_neurons, new_weights[i]);
+        }
+    }
+    for(int i = 0; i < neurons.size(); i++) {
+        for(int j = 0; j < neurons.size(); j++) {
+            float test = new_neurons[i][j].bias;
+            neurons[i][j].bias += new_neurons[i][j].bias / 100;
+        }
+    }
+    for(int i = 0; i < weights.size(); i++) {
+        for(int j = 0; j < weights.size(); j++) {
+            weights[i][j] += new_weights[i][j] / 100;
         }
     }
 }
@@ -206,36 +275,22 @@ int main(int argc, char *argv[]) {
             loadWeights_biases(neurons, weights, images_path + "/neural_data.wbdata");
         }
         if(strcmp(argv[3], "test") == 0){
-            loadImages(images_path + "/testing/test_images.data", images_path + "/testing/test_labels.data", all_images);
+            loadImages(images_path + "/testing/test_images.data", images_path + "/testing/test_labels.data", all_images);//not loading values correctly i think
             test_ai(all_images, neurons, weights);
-        }else
-            loadImages(images_path + "/training/train_images.data", images_path + "/training/train_labels.data", all_images);
-
-        /*guess_image(all_images[image_to_guess], neurons, weights);
-
-        for(int i = 0; i < 10; i++){
-            std::cout << neurons[3][i].value << " ";
-        }
-        int best_guess_number;
-        float best_guess_value = 0;
-
-        for(int i = 0; i < 10; i++){
-            if(neurons[3][i].value > best_guess_value){
-                best_guess_value = neurons[3][i].value;
-                best_guess_number = i;
+        }else {
+            loadImages(images_path + "/training/train_images.data", images_path + "/training/train_labels.data",all_images);
+            for(int i = 0; i < 100; i++){
+                backprop(neurons, weights, all_images, i * 10);
+                std::cout << i << std::endl;
             }
-        }
-        std::cout << "\n" << best_guess_number << "\n" << (int)all_images[image_to_guess].label << std::endl;*/
 
+        }
         if(strcmp(argv[2], "true") == 0){
             saveWeights_biases(neurons, weights, images_path + "/neural_data.wbdata");
         }
 
 
     }
-
-
-    //progress bar 200
 
     return 0;
 }
