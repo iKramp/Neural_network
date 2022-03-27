@@ -12,7 +12,7 @@
 //network with nodes 784-32-16-10
 //  and with weights 25088-512-160
 struct node{
-    float value = 0;
+    float value = 0.5;
     float bias = 0;
 };
 
@@ -28,16 +28,13 @@ void initialize_array(std::vector<std::vector<node>>& neurons, std::vector<std::
     neurons[1].resize(32);
     neurons[2].resize(16);
     neurons[3].resize(10);
-    for(int j = 0; j < 4; j++)
-        for(auto & i : neurons[j])
-            i.bias = 0;
 
     weights[0].resize(25088);
     weights[1].resize(512);
     weights[2].resize(160);
     for(int j = 0; j < 3; j++)
         for(float & i : weights[j])
-            i = 0;
+            i = (rand() % 2) * 2 - 1;
 }
 
 void loadImages(const std::string& image_path, const std::string& label_path, std::vector<images>& all_images){
@@ -139,6 +136,10 @@ void saveWeights_biases(std::vector<std::vector<node>>& neurons, std::vector<std
     int index = 0;
     for(auto & neuron_layer : neurons){
         for(auto & neuron : neuron_layer){
+            float test = neuron.bias;
+            char* data_2 = new char [4];
+            data_2[0] = *(char*)&neuron.bias;
+            std::string test_string = data_2;
             *(float*)&data[index] = neuron.bias;
             index += 4;
         }
@@ -252,6 +253,7 @@ void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<f
     }
     for(int i = 0; i < weights.size(); i++) {
         for(int j = 0; j < weights.size(); j++) {
+            float test = new_weights[i][j] / 100;
             weights[i][j] += new_weights[i][j] / 100;
         }
     }
@@ -279,7 +281,7 @@ int main(int argc, char *argv[]) {
             test_ai(all_images, neurons, weights);
         }else {
             loadImages(images_path + "/training/train_images.data", images_path + "/training/train_labels.data",all_images);
-            for(int i = 0; i < 100; i++){
+            for(int i = 0; i < 10; i++){
                 backprop(neurons, weights, all_images, i * 10);
                 std::cout << i << std::endl;
             }
