@@ -194,23 +194,24 @@ void backprop_layer(int layer, float cost, std::vector<std::vector<node>>& neuro
     for(int i = 0; i < weights.size(); i++){//setting up weights
         float dc_dw = neurons[layer][i % neurons[layer].size()].value;
         dc_dw *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
-        dc_dw *= (2 * neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value);
+        dc_dw *= (2 * (neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value));
         float dw = -cost / dc_dw;
         new_weights[i] += weights[i] + dw;
     }
     for(int i = 0; i < weights.size(); i++){//setting up biases
         float dc_db = 1;
         dc_db *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
-        dc_db *= (2 * neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value);
+        dc_db *= (2 * (neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value));
         float db = -cost / dc_db;
-        new_neurons[layer + 1][1 / neurons[layer].size()].bias += neurons[layer + 1][1 / neurons[layer].size()].bias + db;
+        float test_3 = new_neurons[layer + 1][i / neurons[layer].size()].bias + neurons[layer + 1][i / neurons[layer].size()].bias + db;
+        new_neurons[layer + 1][i / neurons[layer].size()].bias += neurons[layer + 1][i / neurons[layer].size()].bias + db;
     }
     for(int i = 0; i < weights.size(); i++){//setting up next layer
         float dc_dv = weights[i];
         dc_dv *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
-        dc_dv *= (2 * neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value);
+        dc_dv *= (2 * (neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value));
         float dv = -cost / dc_dv;
-        new_neurons[layer][1 % neurons[layer].size()].value += neurons[layer + 1][1 % neurons[layer].size()].bias + dv;
+        new_neurons[layer][i % neurons[layer].size()].value += neurons[layer + 1][i % neurons[layer].size()].bias + dv;
     }
 }
 
@@ -236,13 +237,18 @@ void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<f
     for(int i = 0 + start_images; i < 100 + start_images; i++) {
         float cost = 0;
         guess_image(all_images[i], neurons, weights);
-        for (int i = 0; i < 10; i++) {
-            new_neurons[3][i].value = i == all_images[i].label ? 1 : 0;//value is used to store what the values should be
-            cost += pow(new_neurons[3][i].value - neurons[3][i].value, 2);
+
+        for(int j = 0; j < 2; j++)
+            for(int k = 0; k < new_neurons[j].size(); k++)
+                new_neurons[j][k].value = 0;
+
+        for (int j = 0; j < 10; j++) {
+            new_neurons[3][j].value = j == all_images[i].label ? 1 : 0;//value is used to store what the values should be
+            cost += pow(new_neurons[3][j].value - neurons[3][j].value, 2);
         }
 
-        for (int i = 2; i >= 0; i--) {
-            backprop_layer(i, cost, neurons, weights[i], new_neurons, new_weights[i]);
+        for (int j = 2; j >= 0; j--) {
+            backprop_layer(j, cost, neurons, weights[j], new_neurons, new_weights[j]);
         }
     }
     for(int i = 0; i < neurons.size(); i++) {
@@ -281,8 +287,8 @@ int main(int argc, char *argv[]) {
             test_ai(all_images, neurons, weights);
         }else {
             loadImages(images_path + "/training/train_images.data", images_path + "/training/train_labels.data",all_images);
-            for(int i = 0; i < 10; i++){
-                backprop(neurons, weights, all_images, i * 10);
+            for(int i = 0; i < 100; i++){
+                backprop(neurons, weights, all_images, i * 100);
                 std::cout << i << std::endl;
             }
 
