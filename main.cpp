@@ -8,7 +8,7 @@
 #include <random>
 
 #define CONST_E 2.7182818284590452353602874713527
-#define LEARNING_CURVE 300000
+#define LEARNING_CURVE 30000
 
 //network with nodes 784-32-16-10
 //  and with weights 25088-512-160
@@ -205,13 +205,14 @@ void backprop_layer(int layer, float cost, std::vector<std::vector<node>>& neuro
         float dc_dw = neurons[layer][i % neurons[layer].size()].value;
         dc_dw *= sigmoid_derivative(inverse_sigmoid_func(neurons[layer][i % neurons[layer].size()].value));
         dc_dw *= (2 * (neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value));
-        float dw = -cost / dc_dw;
-        new_weights[i] += dw;
+        /*float dw = -cost / dc_dw;
+        new_weights[i] += dw;*/
+        new_weights[i] += dc_dw;
     }
     for(int i = 0; i < neurons[layer + 1].size(); i++){//setting up biases
         float dc_db = sigmoid_derivative(inverse_sigmoid_func(neurons[layer + 1][i].value));
         dc_db *= 2 * (neurons[layer + 1][i].value - new_neurons[layer + 1][i].value);
-        new_neurons[layer + 1][i].bias += -cost / dc_db;
+        new_neurons[layer + 1][i].bias += dc_db;
     }
     for(int i = 0; i < weights.size(); i++){//setting up next layer
         float dc_dv = weights[i];
@@ -240,10 +241,10 @@ void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<f
             j = 0;
         }
     }
-
+    float cost = 0;
 
     for(int i = 0 + start_images; i < 100 + start_images; i++) {
-        float cost = 0;
+
         guess_image(all_images[i], neurons, weights);
 
         for(int j = 0; j < 2; j++)
@@ -259,20 +260,21 @@ void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<f
             backprop_layer(j, cost, neurons, weights[j], new_neurons, new_weights[j]);
         }
     }
+    cost /= 100;
     for(int i = 0; i < neurons.size(); i++) {
         for(int j = 0; j < neurons[i].size(); j++) {
-            neurons[i][j].bias += (new_neurons[i][j].bias / LEARNING_CURVE) / 100;
+            neurons[i][j].bias += ((- cost / new_neurons[i][j].bias) / LEARNING_CURVE) / 100;
         }
     }
     for(int i = 0; i < weights.size(); i++) {
         for(int j = 0; j < weights[i].size(); j++) {
-            weights[i][j] += (new_weights[i][j] / LEARNING_CURVE) / 100;
+            weights[i][j] += ((-cost / new_weights[i][j]) / LEARNING_CURVE) / 100;
         }
     }
 }
 
 
-int main(int argc, char *argv[]) {//random accuracy of 10,31%
+int main(int argc, char *argv[]) {//current accuracy of 10,01%, change to cost over all 100 examples not just current 1
     srand(time(0));
     std::vector<std::vector<node>> neurons(4);
     std::vector<std::vector<float>> weights(3);
