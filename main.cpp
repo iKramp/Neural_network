@@ -4,9 +4,11 @@
 #include <fstream>
 #include <cmath>
 #include <cstring>
+#include <algorithm>
+#include <random>
 
 #define CONST_E 2.7182818284590452353602874713527
-#define LEARNING_CURVE 30000
+#define LEARNING_CURVE 300000
 
 //network with nodes 784-32-16-10
 //  and with weights 25088-512-160
@@ -72,11 +74,14 @@ void loadImages(const std::string& image_path, const std::string& label_path, st
         }
     }
 
+    std::random_device rd;
+    std::mt19937 g(rd());
+
+    std::shuffle(all_images.begin(), all_images.end(), g);
+
     delete []images_data;
     delete []label_data;
 
-    /*auto rng = std::default_random_engine {};
-    std::shuffle(std::begin(all_images), std::end(all_images), rng);*/
 }
 
 float sigmoid_func(float input){
@@ -84,7 +89,11 @@ float sigmoid_func(float input){
 }
 
 float sigmoid_derivative(float input){
-    return sigmoid_func(input) * (1 - sigmoid_func(input));
+    return (sigmoid_func(input) * (1 - sigmoid_func(input))) * 0.9 + 0.1;
+}
+
+float inverse_sigmoid_func(float input){
+    return std::log(input/(1-input));
 }
 
 
@@ -199,19 +208,18 @@ void backprop_layer(int layer, float cost, std::vector<std::vector<node>>& neuro
         float dw = -cost / dc_dw;
         new_weights[i] += dw;
     }
-    for(int i = 0; i < weights.size(); i++){//setting up biases
-        float dc_db = 1;
-        dc_db *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
-        dc_db *= (2 * (neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value));
-        float db = -cost / dc_db;
-        new_neurons[layer + 1][i / neurons[layer].size()].bias += db;
+    for(int i = 0; i < neurons[layer + 1].size(); i++){//setting up biases
+        float dc_db = inverse_sigmoid_func(neurons[layer + 1][i].value);
+        dc_db *= 2 * (neurons[layer + 1][i].value - new_neurons[layer + 1][i].value);
+        new_neurons[layer + 1][i].bias += -cost / dc_db;
     }
     for(int i = 0; i < weights.size(); i++){//setting up next layer
         float dc_dv = weights[i];
         dc_dv *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
         dc_dv *= (2 * (neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value));
-        float dv = -cost / dc_dv;
-        new_neurons[layer][i % neurons[layer].size()].value += neurons[layer][i % neurons[layer].size()].value + dv;
+        new_neurons[layer][i % neurons[layer].size()].value += dc_dv;
+        if(i / neurons[layer].size() == neurons[layer].size() - 1)
+            new_neurons[layer][i % neurons[layer].size()].value += neurons[layer][i % neurons[layer].size()].value;
     }
 }
 
@@ -284,9 +292,12 @@ int main(int argc, char *argv[]) {//random accuracy of 10,31%
             test_ai(all_images, neurons, weights);
         }else {
             loadImages(images_path + "/training/train_images.data", images_path + "/training/train_labels.data",all_images);
-            for(int i = 0; i < 600; i++){
-                backprop(neurons, weights, all_images, i * 100);
-                std::cout << i << std::endl;
+            for(int j = 0; j < 20; j++) {
+                for (int i = 0; i < 30; i++) {
+                    backprop(neurons, weights, all_images, (i + j * 30) * 100);
+                    std::cout << j << " " << i << std::endl;
+                }
+                saveWeights_biases(neurons, weights, images_path + "/neural_data.wbdata");
             }
 
         }
