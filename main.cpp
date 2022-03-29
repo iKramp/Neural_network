@@ -203,19 +203,19 @@ void test_ai(std::vector<images>& all_images, std::vector<std::vector<node>>& ne
 void backprop_layer(int layer, float cost, std::vector<std::vector<node>>& neurons, std::vector<float>& weights, std::vector<std::vector<node>>& new_neurons, std::vector<float>& new_weights){
     for(int i = 0; i < weights.size(); i++){//setting up weights
         float dc_dw = neurons[layer][i % neurons[layer].size()].value;
-        dc_dw *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
+        dc_dw *= sigmoid_derivative(inverse_sigmoid_func(neurons[layer][i % neurons[layer].size()].value));
         dc_dw *= (2 * (neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value));
         float dw = -cost / dc_dw;
         new_weights[i] += dw;
     }
     for(int i = 0; i < neurons[layer + 1].size(); i++){//setting up biases
-        float dc_db = inverse_sigmoid_func(neurons[layer + 1][i].value);
+        float dc_db = sigmoid_derivative(inverse_sigmoid_func(neurons[layer + 1][i].value));
         dc_db *= 2 * (neurons[layer + 1][i].value - new_neurons[layer + 1][i].value);
         new_neurons[layer + 1][i].bias += -cost / dc_db;
     }
     for(int i = 0; i < weights.size(); i++){//setting up next layer
         float dc_dv = weights[i];
-        dc_dv *= sigmoid_derivative(weights[i] * neurons[layer][i % neurons[layer].size()].value + neurons[layer + 1][i / neurons[layer].size()].bias);
+        dc_dv *= sigmoid_derivative(inverse_sigmoid_func(neurons[layer][i % neurons[layer].size()].value));
         dc_dv *= (2 * (neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value));
         new_neurons[layer][i % neurons[layer].size()].value += dc_dv;
         if(i / neurons[layer].size() == neurons[layer].size() - 1)
