@@ -29,13 +29,16 @@ void initialize_array(std::vector<std::vector<node>>& neurons, std::vector<std::
     neurons[1].resize(32);
     neurons[2].resize(16);
     neurons[3].resize(10);
+    for(int j = 1; j < 4; j++)
+        for(node & i : neurons[j])
+            i.bias = ((float)(rand() % 64) - 31.5) / 16;
 
     weights[0].resize(25088);
     weights[1].resize(512);
     weights[2].resize(160);
     for(int j = 0; j < 3; j++)
         for(float & i : weights[j])
-            i = (rand() % 2) * 2 - 1;
+            i = ((float)(rand() % 64) - 31.5) / 16;
 }
 
 void loadImages(const std::string& image_path, const std::string& label_path, std::vector<images>& all_images){
@@ -85,15 +88,15 @@ void loadImages(const std::string& image_path, const std::string& label_path, st
 }
 
 float sigmoid_func(float input){
-    return 0.8 / (1 + pow(CONST_E, -input)) + 0.1;
+    return 0.98 / (1 + pow(CONST_E, -input)) + 0.01;
 }
 
 float sigmoid_derivative(float input){
-    return (sigmoid_func(input) * (1 - sigmoid_func(input))) * 0.9 + 0.1;
+    return (sigmoid_func(input) * (1 - sigmoid_func(input))) * 0.98 + 0.01;
 }
 
 float inverse_sigmoid_func(float input){
-    return std::log(input/(1-input));
+    return std::log(input/(1 - input));
 }
 
 
@@ -200,13 +203,11 @@ void test_ai(std::vector<images>& all_images, std::vector<std::vector<node>>& ne
     }
 }
 
-void backprop_layer(int layer, float cost, std::vector<std::vector<node>>& neurons, std::vector<float>& weights, std::vector<std::vector<node>>& new_neurons, std::vector<float>& new_weights){
+void backprop_layer(int layer, std::vector<std::vector<node>>& neurons, std::vector<float>& weights, std::vector<std::vector<node>>& new_neurons, std::vector<float>& new_weights){
     for(int i = 0; i < weights.size(); i++){//setting up weights
         float dc_dw = neurons[layer][i % neurons[layer].size()].value;
         dc_dw *= sigmoid_derivative(inverse_sigmoid_func(neurons[layer][i % neurons[layer].size()].value));
         dc_dw *= (2 * (neurons[layer + 1][i / neurons[layer].size()].value - new_neurons[layer + 1][i / neurons[layer].size()].value));
-        /*float dw = -cost / dc_dw;
-        new_weights[i] += dw;*/
         new_weights[i] += dc_dw;
     }
     for(int i = 0; i < neurons[layer + 1].size(); i++){//setting up biases
@@ -225,7 +226,7 @@ void backprop_layer(int layer, float cost, std::vector<std::vector<node>>& neuro
 }
 
 
-void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights, std::vector<images>& all_images, int start_images){//first -nan on 3136, that is the 784th float
+void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights, std::vector<images>& all_images, int start_images, float& average_cost){
     std::vector<std::vector<node>> new_neurons(neurons.size());
     std::vector<std::vector<float>> new_weights(weights.size());
     for(int i = 0; i < neurons.size(); i++) {
@@ -257,11 +258,12 @@ void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<f
         }
 
         for (int j = 2; j >= 0; j--) {
-            backprop_layer(j, cost, neurons, weights[j], new_neurons, new_weights[j]);
+            backprop_layer(j, neurons, weights[j], new_neurons, new_weights[j]);
         }
     }
     cost /= 100;
-    for(int i = 0; i < neurons.size(); i++) {
+    average_cost += cost;
+    for(int i = 1; i < neurons.size(); i++) {
         for(int j = 0; j < neurons[i].size(); j++) {
             neurons[i][j].bias += ((- cost / new_neurons[i][j].bias) / LEARNING_CURVE) / 100;
         }
@@ -274,8 +276,8 @@ void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<f
 }
 
 
-int main(int argc, char *argv[]) {//current accuracy of 10,01%, change to cost over all 100 examples not just current 1
-    srand(time(0));
+int main(int argc, char *argv[]) {//current accuracy of 10,41%, average cost of 600 is 5.23427, 5.23301, 5.23146, 5.22817, 5.22496, 5.22178, 5.21941
+    srand(time(0));// delta C of:                                               0,00126, 0,00155, 0,00329, 0,00321, 0,00318, 0,00237
     std::vector<std::vector<node>> neurons(4);
     std::vector<std::vector<float>> weights(3);
     std::vector<images> all_images;
@@ -295,10 +297,13 @@ int main(int argc, char *argv[]) {//current accuracy of 10,01%, change to cost o
         }else {
             loadImages(images_path + "/training/train_images.data", images_path + "/training/train_labels.data",all_images);
             for(int j = 0; j < 20; j++) {
-                for (int i = 0; i < 30; i++) {
-                    backprop(neurons, weights, all_images, (i + j * 30) * 100);
+                float average_cost = 0;
+                for (int i = 0; i < 600; i++) {
+                    backprop(neurons, weights, all_images, i * 100, average_cost);
                     std::cout << j << " " << i << std::endl;
                 }
+                average_cost /= 600;
+                std::cout << "average cost:" << average_cost << std::endl;
                 saveWeights_biases(neurons, weights, images_path + "/neural_data.wbdata");
             }
 
