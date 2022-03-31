@@ -175,6 +175,7 @@ void saveWeights_biases(std::vector<std::vector<node>>& neurons, std::vector<std
 void test_ai(std::vector<images>& all_images, std::vector<std::vector<node>>& neurons, std::vector<std::vector<float>>& weights){
     int image_number = 0;
     int correct_answers = 0;
+    float average_cost = 0;
     for(auto& image : all_images){
         image_number++;
         guess_image(image, neurons, weights);
@@ -186,6 +187,12 @@ void test_ai(std::vector<images>& all_images, std::vector<std::vector<node>>& ne
                 best_guess_value = neurons[3][i].value;
                 best_guess_number = i;
             }
+        }
+        for(int i = 0; i < 10; i++){
+            if(image.label == i)
+                average_cost += pow((neurons[3][i].value - 1), 2);
+            else
+                average_cost += pow(neurons[3][i].value, 2);
         }
         if(best_guess_number == image.label)
             correct_answers++;
@@ -201,6 +208,8 @@ void test_ai(std::vector<images>& all_images, std::vector<std::vector<node>>& ne
             std::cout << std::to_string(correct_percentage).substr(0, 5);
         }
     }
+    average_cost /= all_images.size();
+    std::cout << std::endl << average_cost;
 }
 
 void backprop_layer(int layer, std::vector<std::vector<node>>& neurons, std::vector<float>& weights, std::vector<std::vector<node>>& new_neurons, std::vector<float>& new_weights){
@@ -275,9 +284,9 @@ void backprop(std::vector<std::vector<node>>& neurons, std::vector<std::vector<f
     }
 }
 
-
-int main(int argc, char *argv[]) {//current accuracy of 10,41%, average cost of 600 is 5.23427, 5.23301, 5.23146, 5.22817, 5.22496, 5.22178, 5.21941
-    srand(time(0));// delta C of:                                               0,00126, 0,00155, 0,00329, 0,00321, 0,00318, 0,00237
+//                                                                                                                                                                        here i change the speed V
+int main(int argc, char *argv[]) {//current accuracy of 10,41%, average cost of 600 is 5.23427, 5.23301, 5.23146, 5.22817, 5.22496, 5.22178, 5.21941,  5.22303, 5.21695, 5.20278, 5.1978, 5.19007, 5.03512, 4.6579, 4.53928,  4.81085, 4.72235, 4.72696,  4.73888, 4.71454, 4.61375, 4.87692, 4.67817, 4.47415, 4.33738, 4.32731, 4.20427, 4.23877, 4.02837, 3.90065, 4.05874
+    srand(time(0));// delta C of:                                               0,00126, 0,00155, 0,00329, 0,00321, 0,00318, 0,00237, −0,00362, 0,00608, 0,01417, 0,00498, 0,00773, 0,15495, 0,37722, 0,11862, −0,27157, 0,0885, −0,00461, −0,01192, 0,02434
     std::vector<std::vector<node>> neurons(4);
     std::vector<std::vector<float>> weights(3);
     std::vector<images> all_images;
