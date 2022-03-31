@@ -88,15 +88,15 @@ void loadImages(const std::string& image_path, const std::string& label_path, st
 }
 
 float sigmoid_func(float input){
-    return 0.98 / (1 + pow(CONST_E, -input)) + 0.01;
+    return std::max(input, input / 100);
 }
 
 float sigmoid_derivative(float input){
-    return (sigmoid_func(input) * (1 - sigmoid_func(input))) * 0.98 + 0.01;
+    return input < 0 ? 0.01 : 1;
 }
 
 float inverse_sigmoid_func(float input){
-    return std::log(input/(1 - input));
+    return std::min(input, input * 100);
 }
 
 
